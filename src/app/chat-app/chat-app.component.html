@@ -1,0 +1,1042 @@
+<div class="app-container">
+  <!-- App Header -->
+  <div class="app-header">
+    <div class="header-content">
+      <div class="user-info" (click)="openProfileModal()">
+        <div class="profile-avatar">
+          <img *ngIf="user.profileImage" [src]="user.profileImage" alt="Profile" class="avatar-image">
+          <div *ngIf="!user.profileImage" class="avatar-placeholder">
+            <span class="user-icon">👤</span>
+          </div>
+          <div *ngIf="user.isOnline" class="online-indicator"></div>
+        </div>
+        
+        <div class="user-details">
+          <h3 class="user-name">{{ user.name }}</h3>
+          <p class="user-status">{{ user.status }}</p>
+        </div>
+      </div>
+      
+      <div class="header-actions">
+        <button class="settings-btn" (click)="openProfileModal()" title="Settings">
+          <span class="settings-icon">⚙️</span>
+        </button>
+        <button class="logout-btn" (click)="signOut()" title="Logout">
+          <span class="logout-icon">🚪</span>
+        </button>
+      </div>
+      
+      <div *ngIf="currentUser" class="test-controls">
+        <p class="user-email">{{ currentUser.email }}</p>
+        <div class="control-buttons">
+          <button class="control-btn primary" (click)="manuallyAddCurrentUser()">
+            Add to Contacts
+          </button>
+          <button class="control-btn secondary" (click)="refreshUsersList()">
+            Refresh List
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chat Container -->
+  <div class="chat-container">
+    <div class="chat-app-container">
+      
+      <!-- Sidebar -->
+      <aside class="chat-sidebar" [class.open]="sidebarOpen">
+        
+        <!-- Sidebar Header -->
+        <div class="sidebar-header">
+          <div class="sidebar-tabs">
+            <button 
+              class="tab-btn" 
+              [class.active]="activeTab === 'chats'"
+              (click)="setActiveTab('chats')">
+              Chats ({{ chatContacts.length }})
+            </button>
+            <button 
+              class="tab-btn" 
+              [class.active]="activeTab === 'users'"
+              (click)="setActiveTab('users')">
+              Contacts ({{ allUsers.length }})
+            </button>
+          </div>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="search-container">
+          <div class="search-wrapper">
+            <span class="search-icon">🔍</span>
+            <input 
+              type="text" 
+              class="search-input"
+              [(ngModel)]="searchTerm"
+              placeholder="{{ activeTab === 'chats' ? 'Search chats...' : 'Search contacts...' }}"
+              (input)="onSearchChange()">
+          </div>
+        </div>
+
+        <!-- Chats Tab -->
+        <div *ngIf="activeTab === 'chats'" class="tab-content">
+          <ul class="chat-list" *ngIf="filteredChats.length > 0; else noChats">
+            <li *ngFor="let contact of filteredChats" 
+                class="chat-list-item" 
+                [class.active]="contact.isActive"
+                (click)="selectContact(contact)">
+              
+              <div class="contact-avatar">
+                <img *ngIf="contact.profileImage" [src]="contact.profileImage" alt="Profile">
+                <div *ngIf="!contact.profileImage" class="avatar-placeholder">
+                  {{ contact.avatar }}
+                </div>
+                <div *ngIf="contact.isOnline" class="online-dot"></div>
+              </div>
+              
+              <div class="chat-info">
+                <div class="chat-name">{{ contact.name }}</div>
+                <div class="chat-status">{{ contact.status || 'No messages' }}</div>
+              </div>
+              
+              <div class="chat-meta">
+                <div class="chat-time" *ngIf="contact.lastMessageTime">
+                  {{ formatTime(contact.lastMessageTime) }}
+                </div>
+              </div>
+            </li>
+          </ul>
+
+          <ng-template #noChats>
+            <div class="empty-state">
+              <div class="empty-icon">💬</div>
+              <h3>No Chats Yet</h3>
+              <p class="empty-subtitle">Start a new conversation from contacts</p>
+            </div>
+          </ng-template>
+        </div>
+
+        <!-- Users Tab -->
+        <div *ngIf="activeTab === 'users'" class="tab-content">
+          <ul class="users-list" *ngIf="filteredUsers.length > 0; else noUsers">
+            <li *ngFor="let user of filteredUsers" 
+                class="user-item"
+                (click)="startChatWithUser(user)">
+              
+              <div class="contact-avatar">
+                <img *ngIf="user.photoURL" [src]="user.photoURL" alt="Profile">
+                <div *ngIf="!user.photoURL" class="avatar-placeholder">
+                  {{ user.displayName?.charAt(0)?.toUpperCase() || 'M' }}
+                </div>
+                <div *ngIf="user.isOnline" class="online-dot"></div>
+              </div>
+              
+              <div class="user-info">
+                <div class="user-name">{{ user.displayName || 'User' }}</div>
+                <div class="user-status" [class.online]="user.isOnline">
+                  {{ user.status || (user.isOnline ? 'Online' : 'Offline') }}
+                </div>
+              </div>
+              
+              <div class="user-actions">
+                <button class="chat-btn" title="Start Chat">
+                  💬
+                </button>
+              </div>
+            </li>
+          </ul>
+
+          <ng-template #noUsers>
+            <div class="empty-state">
+              <div class="empty-icon">👥</div>
+              <h3>No Contacts</h3>
+              <p class="empty-subtitle">No users found</p>
+            </div>
+          </ng-template>
+        </div>
+
+      </aside>
+
+      <!-- Main Chat Area -->
+      <main class="chat-main">
+        <header class="chat-header">
+          <button class="menu-btn" (click)="toggleSidebar()">☰</button>
+          <div class="chat-contact-info">
+            <div class="contact-details">
+              <div class="contact-name">{{ selectedContact?.name || 'Choose Contact' }}</div>
+              <div class="contact-status" *ngIf="selectedContact">
+                <span class="status-dot" [class.online]="selectedContact?.isOnline"></span>
+                {{ selectedContact?.isOnline ? 'Online' : 'Offline' }}
+              </div>
+            </div>
+            <div *ngIf="selectedContact" class="contact-avatar">
+              <img *ngIf="selectedContact.profileImage" [src]="selectedContact.profileImage" alt="Profile">
+              <div *ngIf="!selectedContact.profileImage" class="avatar-placeholder">
+                {{ selectedContact?.avatar }}
+              </div>
+              <div *ngIf="selectedContact.isOnline" class="online-dot"></div>
+            </div>
+          </div>
+        </header>
+        
+        <section class="chat-messages" #messagesContainer *ngIf="selectedContact; else selectChatTemplate">
+          <div *ngFor="let message of messages" 
+               class="message" 
+               [class.sent]="message.type === 'sent'"
+               [class.received]="message.type === 'received'">
+            <div class="message-content">
+              <div class="message-text">{{ message.text }}</div>
+              <div class="message-time">
+                {{ formatMessageTime(message.timestamp) }}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <ng-template #selectChatTemplate>
+          <div class="welcome-screen">
+            <div class="welcome-icon">💬</div>
+            <h2>Welcome to ChatApp!</h2>
+            <p>Choose a chat from the sidebar to start messaging</p>
+          </div>
+        </ng-template>
+        
+        <footer class="chat-input-area" *ngIf="selectedContact">
+          <div class="input-wrapper">
+            <input 
+              type="text" 
+              placeholder="Type your message..." 
+              class="chat-input"
+              [(ngModel)]="messageText"
+              (keydown.enter)="sendMessage()"
+              #messageInput>
+            <button 
+              class="send-button" 
+              (click)="sendMessage()" 
+              [disabled]="!messageText.trim()">
+              <span class="send-icon">➤</span>
+            </button>
+          </div>
+        </footer>
+      </main>
+    </div>
+  </div>
+
+  <!-- Profile Modal -->
+  <div *ngIf="showProfileModal" class="modal-overlay" (click)="closeProfileModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Profile Settings</h2>
+        <button class="close-btn" (click)="closeProfileModal()">×</button>
+      </div>
+      
+      <div class="modal-body">
+        <div class="profile-section">
+          <div class="profile-image-container">
+            <div class="profile-image-wrapper">
+              <img *ngIf="user.profileImage" [src]="user.profileImage" alt="Profile" class="profile-image">
+              <div *ngIf="!user.profileImage" class="profile-placeholder">
+                <span class="user-icon-large">👤</span>
+              </div>
+            </div>
+            <button class="change-photo-btn" (click)="openFileDialog()">
+              <span class="camera-icon">📷</span>
+            </button>
+          </div>
+          
+          <h3 class="profile-name">{{ user.name }}</h3>
+          
+          <div class="status-section">
+            <div *ngIf="!isEditingStatus" class="status-display">
+              <span class="current-status">{{ user.status }}</span>
+              <button class="edit-btn" (click)="startEditingStatus()">
+                <span class="edit-icon">✏️</span>
+              </button>
+            </div>
+            
+            <div *ngIf="isEditingStatus" class="status-edit">
+              <input 
+                [(ngModel)]="tempStatus" 
+                type="text" 
+                placeholder="Enter your status..." 
+                class="status-input"
+                #statusInput>
+              <div class="edit-actions">
+                <button class="save-btn" (click)="saveStatus()">✓</button>
+                <button class="cancel-btn" (click)="cancelStatusEdit()">×</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="quick-status">
+            <h4>Quick Status</h4>
+            <div class="status-options">
+              <button *ngFor="let status of statusOptions" 
+                      class="status-option" 
+                      (click)="setQuickStatus(status)">
+                <span>{{ status.emoji }} {{ status.text }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="modal-footer">
+        <button class="save-profile-btn" (click)="closeProfileModal()">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <input #fileInput type="file" accept="image/*" (change)="onImageUpload($event)" style="display: none;">
+</div>
+
+<style>
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+.app-container {
+  height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  overflow: hidden;
+}
+
+/* Header */
+.app-header {
+  background: rgba(255, 255, 255, 0.95);
+  
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  padding: 1rem 2rem;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1200px;
+  margin: 0 auto;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+  border-radius: 50px;
+  transition: all 0.3s ease;
+}
+
+.user-info:hover {
+  background: rgba(102, 126, 234, 0.1);
+}
+
+.profile-avatar, .contact-avatar {
+  position: relative;
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.avatar-image, .profile-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-placeholder, .profile-placeholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+  font-size: 1.2rem;
+}
+
+.online-indicator, .online-dot {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 12px;
+  height: 12px;
+  background: #4CAF50;
+  border: 2px solid white;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+.user-name {
+  color: #333;
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.user-status {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.settings-btn, .logout-btn {
+  background: #667eea;
+  border: none;
+  color: white;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-btn:hover {
+  background: #5a67d8;
+  transform: rotate(90deg);
+}
+
+.logout-btn:hover {
+  background: #e53e3e;
+}
+
+.test-controls {
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1rem;
+  text-align: center;
+}
+
+.user-email {
+  color: #4a5568;
+  font-size: 0.9rem;
+  margin-bottom: 0.75rem;
+}
+
+.control-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.control-btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.control-btn.primary {
+  background: #48bb78;
+  color: white;
+}
+
+.control-btn.secondary {
+  background: #667eea;
+  color: white;
+}
+
+.control-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+/* Main Chat Container */
+.chat-container {
+  height: calc(100vh - 140px);
+  display: flex;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem 2rem;
+  gap: 1rem;
+      width: 100%;
+}
+
+.chat-app-container {
+  display: flex;
+  width: 100%;
+  gap: 1rem;
+  height: 100%;
+}
+
+/* Sidebar */
+.chat-sidebar {
+  width: 300px;
+  background: white;
+  border-radius: 15px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  overflow: hidden;
+}
+
+.sidebar-header {
+  padding: 1rem;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f7fafc;
+}
+
+.sidebar-tabs {
+  display: flex;
+  background: #edf2f7;
+  border-radius: 8px;
+  padding: 4px;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: #4a5568;
+  font-weight: 500;
+}
+
+.tab-btn.active {
+  background: #667eea;
+  color: white;
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+}
+
+.tab-btn:hover:not(.active) {
+  background: rgba(102, 126, 234, 0.1);
+}
+
+/* Search */
+.search-container {
+  padding: 1rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.search-wrapper {
+  position: relative;
+}
+
+.search-input {
+  width: 100%;
+  padding: 0.75rem 1rem 0.75rem 2.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  background: #f7fafc;
+  font-size: 0.9rem;
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+.search-input:focus {
+  border-color: #667eea;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.search-icon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #a0aec0;
+  font-size: 1rem;
+}
+
+/* Lists */
+.tab-content {
+  height: calc(100% - 160px);
+  overflow-y: auto;
+}
+
+.chat-list, .users-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.chat-list-item, .user-item {
+  display: flex;
+  align-items: center;
+  padding: 1rem;
+  cursor: pointer;
+  border-bottom: 1px solid #f7fafc;
+  transition: all 0.3s ease;
+  gap: 1rem;
+}
+
+.chat-list-item:hover, .user-item:hover {
+  background: #f7fafc;
+}
+
+.chat-list-item.active {
+  background: #e6fffa;
+  border-right: 4px solid #38b2ac;
+}
+
+.chat-info, .user-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.chat-name, .user-name {
+  font-weight: 600;
+  color: #2d3748;
+  margin-bottom: 0.25rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-status, .user-status {
+  font-size: 0.85rem;
+  color: #718096;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-status.online {
+  color: #38a169;
+}
+
+.chat-btn {
+  background: #667eea;
+  color: white;
+  border: none;
+  padding: 0.5rem 0.75rem;
+  border-radius: 15px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.chat-btn:hover {
+  background: #5a67d8;
+}
+
+.chat-time {
+  font-size: 0.75rem;
+  color: #a0aec0;
+}
+
+/* Main Chat */
+.chat-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: white;
+  border-radius: 15px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  overflow: hidden;
+}
+
+.chat-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f7fafc;
+}
+
+.menu-btn {
+  display: none;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #4a5568;
+}
+
+.chat-contact-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+}
+
+.contact-details {
+  flex: 1;
+}
+
+.contact-name {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #2d3748;
+  margin-bottom: 0.25rem;
+}
+
+.contact-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #718096;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #e53e3e;
+}
+
+.status-dot.online {
+  background: #38a169;
+}
+
+/* Messages */
+.chat-messages {
+  flex: 1;
+  padding: 1rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.message {
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.message.sent {
+  align-self: flex-end;
+}
+
+.message.received {
+  align-self: flex-start;
+}
+
+.message-content {
+  max-width: 70%;
+  padding: 0.75rem 1rem;
+  border-radius: 18px;
+  position: relative;
+}
+
+.message.sent .message-content {
+  background: #667eea;
+  color: white;
+  border-bottom-right-radius: 6px;
+}
+
+.message.received .message-content {
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  color: #2d3748;
+  border-bottom-left-radius: 6px;
+}
+
+.message-text {
+  line-height: 1.4;
+  margin-bottom: 0.25rem;
+}
+
+.message-time {
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
+/* Input */
+.chat-input-area {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #e2e8f0;
+  background: #f7fafc;
+}
+
+.input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 25px;
+  padding: 0.5rem;
+      width: 100%;
+}
+
+.chat-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+  outline: none;
+}
+
+.send-button {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  background: #667eea;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.send-button:hover:not(:disabled) {
+  background: #5a67d8;
+  transform: scale(1.05);
+}
+
+.send-button:disabled {
+  background: #cbd5e0;
+  cursor: not-allowed;
+}
+
+/* Welcome Screen */
+.welcome-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+  color: #4a5568;
+}
+
+.welcome-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.welcome-screen h2 {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+  color: #2d3748;
+}
+
+/* Empty States */
+.empty-state {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: #718096;
+}
+
+.empty-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.empty-state h3 {
+  color: #4a5568;
+  margin-bottom: 0.5rem;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 15px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  width: 90%;
+  max-width: 500px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.modal-header h2 {
+  color: #2d3748;
+  font-size: 1.25rem;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #718096;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.close-btn:hover {
+  background: #f7fafc;
+}
+
+.modal-body {
+  padding: 2rem;
+}
+
+.profile-section {
+  text-align: center;
+}
+
+.profile-image-container {
+  position: relative;
+  display: inline-block;
+  margin-bottom: 1rem;
+}
+
+.profile-image-wrapper {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 3px solid #e2e8f0;
+}
+
+.change-photo-btn {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  background: #667eea;
+  border: none;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-name {
+  color: #2d3748;
+  margin-bottom: 1rem;
+}
+
+.status-section {
+  margin-bottom: 1.5rem;
+}
+
+.status-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: #f7fafc;
+  padding: 0.75rem 1rem;
+  border-radius: 20px;
+}
+
+.current-status {
+  color: #4a5568;
+}
+
+.edit-btn {
+  background: none;
+  border: none;
+  color: #718096;
+  cursor: pointer;
+  padding: 0.25rem;
+}
+
+.status-edit {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #f7fafc;
+  padding: 0.5rem;
+  border-radius: 20px;
+}
+
+.status-input {
+  flex: 1;
+  background: none;
+  border: none;
+  padding: 0.5rem;
+  outline: none;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.save-btn, .cancel-btn {
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.save-btn {
+  background: #48bb78;
+  color: white;
+}
+
+.cancel-btn {
+  background: #fed7d7;
+  color: #c53030;
+}
+
+.quick-status h4 {
+  color: #4a5568;
+  margin-bottom: 1rem;
+}
+
+.status-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+.status-option {
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 0.5rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+}
+</style>

@@ -1,0 +1,630 @@
+<!-- Modern Auth Form -->
+<div class="auth-container">
+  <!-- Logo Section -->
+  <div class="logo-section">
+    <div class="logo-wrapper">
+      <img src="../../assets/icons8-wechat-200.png" alt="ChatApp" class="logo-img">
+      <h1 class="app-title">ChatApp</h1>
+      <p class="app-subtitle">Connect with friends instantly</p>
+    </div>
+  </div>
+
+  <!-- Auth Form Section -->
+  <div class="auth-section">
+    <div class="auth-card">
+      
+      <!-- Tab Headers -->
+      <div class="auth-tabs">
+        <input type="radio" id="login-tab" name="auth-tab" checked>
+        <input type="radio" id="signup-tab" name="auth-tab">
+        
+        <div class="tab-labels">
+          <label for="login-tab" class="tab-label">
+            <span class="tab-icon">🔑</span>
+            <span>Log In</span>
+          </label>
+          <label for="signup-tab" class="tab-label">
+            <span class="tab-icon">👤</span>
+            <span>Sign Up</span>
+          </label>
+        </div>
+
+        <!-- Login Form -->
+        <div class="tab-content login-content">
+          <div class="form-header">
+            <h2>Welcome Back!</h2>
+            <p>Sign in to continue to your account</p>
+          </div>
+          
+          <!-- Error message for login -->
+          <div *ngIf="loginError" class="alert alert-error">
+            <span class="alert-icon">⚠️</span>
+            <span>{{ loginError }}</span>
+          </div>
+          
+          <form (ngSubmit)="onLogin()" #loginForm="ngForm" class="auth-form">
+            <div class="input-group">
+              <div class="input-wrapper">
+                <span class="input-icon">📧</span>
+                <input 
+                  type="email" 
+                  name="loginEmail" 
+                  class="form-input" 
+                  placeholder="Enter your email" 
+                  [(ngModel)]="loginEmail"
+                  (input)="clearErrors()"
+                  required
+                  autocomplete="email">
+              </div>
+            </div>
+            
+            <div class="input-group">
+              <div class="input-wrapper">
+                <span class="input-icon">🔒</span>
+                <input 
+                  type="password" 
+                  name="loginPassword" 
+                  class="form-input" 
+                  placeholder="Enter your password" 
+                  [(ngModel)]="loginPassword"
+                  (input)="clearErrors()"
+                  required
+                  autocomplete="current-password">
+              </div>
+            </div>
+            
+            <button 
+              type="submit" 
+              class="submit-btn primary"
+              [disabled]="isLoginLoading || !loginForm.valid">
+              <span *ngIf="!isLoginLoading" class="btn-text">
+                <span class="btn-icon">🚀</span>
+                Sign In
+              </span>
+              <span *ngIf="isLoginLoading" class="loading-text">
+                <span class="spinner"></span>
+                Signing in...
+              </span>
+            </button>
+          </form>
+
+          <div class="divider">
+            <span>or continue with</span>
+          </div>
+
+          <button 
+            type="button" 
+            class="google-btn"
+            (click)="signInWithGoogle()"
+            [disabled]="isLoginLoading">
+            <span class="google-icon">🔍</span>
+            <span>Google</span>
+          </button>
+
+          <div class="forgot-password">
+            <a routerLink="/forget-password" class="link">Forgot your password?</a>
+          </div>
+        </div>
+
+        <!-- Signup Form -->
+        <div class="tab-content signup-content">
+          <div class="form-header">
+            <h2>Create Account</h2>
+            <p>Join our community and start chatting</p>
+          </div>
+          
+          <!-- Error message for signup -->
+          <div *ngIf="signupError" class="alert alert-error">
+            <span class="alert-icon">⚠️</span>
+            <span>{{ signupError }}</span>
+          </div>
+          
+          <form (ngSubmit)="onSignup()" #signupForm="ngForm" class="auth-form">
+            <div class="input-group">
+              <div class="input-wrapper">
+                <span class="input-icon">👤</span>
+                <input 
+                  type="text" 
+                  name="signupName" 
+                  class="form-input" 
+                  placeholder="Full name" 
+                  [(ngModel)]="signupName"
+                  (input)="clearErrors()"
+                  required
+                  autocomplete="name">
+              </div>
+            </div>
+            
+            <div class="input-group">
+              <div class="input-wrapper">
+                <span class="input-icon">📧</span>
+                <input 
+                  type="email" 
+                  name="signupEmail" 
+                  class="form-input" 
+                  placeholder="Email address" 
+                  [(ngModel)]="signupEmail"
+                  (input)="clearErrors()"
+                  required
+                  autocomplete="email">
+              </div>
+            </div>
+            
+            <div class="input-group">
+              <div class="input-wrapper">
+                <span class="input-icon">🔒</span>
+                <input 
+                  type="password" 
+                  name="signupPassword" 
+                  class="form-input" 
+                  placeholder="Create password" 
+                  [(ngModel)]="signupPassword"
+                  (input)="clearErrors()"
+                  required
+                  minlength="6"
+                  autocomplete="new-password">
+              </div>
+            </div>
+            
+            <button 
+              type="submit" 
+              class="submit-btn secondary"
+              [disabled]="isSignupLoading || !signupForm.valid">
+              <span *ngIf="!isSignupLoading" class="btn-text">
+                <span class="btn-icon">✨</span>
+                Create Account
+              </span>
+              <span *ngIf="isSignupLoading" class="loading-text">
+                <span class="spinner"></span>
+                Creating account...
+              </span>
+            </button>
+          </form>
+
+          <div class="divider">
+            <span>or continue with</span>
+          </div>
+
+          <button 
+            type="button" 
+            class="google-btn"
+            (click)="signInWithGoogle()"
+            [disabled]="isSignupLoading">
+            <span class="google-icon">🔍</span>
+            <span>Google</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+.auth-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Logo Section */
+.logo-section {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  position: relative;
+}
+
+.logo-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.1);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+.logo-wrapper {
+  text-align: center;
+  z-index: 1;
+  position: relative;
+}
+
+.logo-img {
+  width: 120px;
+  height: 120px;
+  margin-bottom: 2rem;
+  filter: drop-shadow(0 10px 20px rgba(0,0,0,0.2));
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+.app-title {
+  font-size: 3rem;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 1rem;
+  text-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
+
+.app-subtitle {
+  font-size: 1.2rem;
+  color: rgba(255, 255, 255, 0.9);
+  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+/* Auth Section */
+.auth-section {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.auth-card {
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+  overflow: hidden;
+  width: 100%;
+  max-width: 450px;
+  position: relative;
+}
+
+/* Tab System */
+.auth-tabs input[type="radio"] {
+  display: none;
+}
+
+.tab-labels {
+  display: flex;
+  background: #f7fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.tab-label {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: #718096;
+  font-weight: 500;
+  position: relative;
+}
+
+.tab-label:hover {
+  background: rgba(102, 126, 234, 0.1);
+  color: #667eea;
+}
+
+.auth-tabs input[type="radio"]:checked + input[type="radio"] + .tab-labels .tab-label:nth-child(2),
+.auth-tabs input[type="radio"]:checked ~ .tab-labels .tab-label:nth-child(1) {
+  background: white;
+  color: #667eea;
+  box-shadow: 0 -2px 0 #667eea;
+}
+
+.tab-icon {
+  font-size: 1.1rem;
+}
+
+/* Tab Content */
+.tab-content {
+  display: none;
+  padding: 2rem;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.auth-tabs input[type="radio"]:checked ~ .login-content {
+  display: block;
+}
+
+.auth-tabs input[type="radio"]:nth-of-type(2):checked ~ .signup-content {
+  display: block;
+}
+
+/* Form Headers */
+.form-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.form-header h2 {
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: #2d3748;
+  margin-bottom: 0.5rem;
+}
+
+.form-header p {
+  color: #718096;
+  font-size: 1rem;
+}
+
+/* Alerts */
+.alert {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-radius: 10px;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.alert-error {
+  background: #fed7d7;
+  color: #c53030;
+  border: 1px solid #feb2b2;
+}
+
+.alert-icon {
+  font-size: 1.1rem;
+}
+
+/* Form Styles */
+.auth-form {
+  margin-bottom: 1.5rem;
+}
+
+.input-group {
+  margin-bottom: 1.5rem;
+}
+
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: #f7fafc;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.input-wrapper:focus-within {
+  border-color: #667eea;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.input-icon {
+      position: relative;
+    left: 0px;
+  /* padding: 0 1rem; */
+  color: #a0aec0;
+  font-size: 1.1rem;
+}
+
+.form-input {
+  flex: 1;
+  padding: 1rem 1rem 1rem 0;
+  border: none;
+  background: transparent;
+  font-size: 1rem;
+  outline: none;
+  color: #2d3748;
+}
+
+.form-input::placeholder {
+  color: #a0aec0;
+}
+
+/* Buttons */
+.submit-btn {
+  width: 100%;
+  padding: 1rem;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.submit-btn.primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.submit-btn.secondary {
+  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+  color: white;
+}
+
+.submit-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+}
+
+.submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-text, .loading-text {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.btn-icon {
+  font-size: 1.1rem;
+}
+
+/* Loading Spinner */
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Divider */
+.divider {
+  position: relative;
+  text-align: center;
+  margin: 1.5rem 0;
+  color: #a0aec0;
+  font-size: 0.9rem;
+}
+
+.divider::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: #e2e8f0;
+}
+
+.divider span {
+  background: white;
+  padding: 0 1rem;
+  position: relative;
+  z-index: 1;
+}
+
+/* Google Button */
+.google-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  background: white;
+  color: #4a5568;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-bottom: 1rem;
+}
+
+.google-btn:hover:not(:disabled) {
+  border-color: #4285f4;
+  background: #f8f9ff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.google-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.google-icon {
+  font-size: 1.2rem;
+}
+
+/* Links */
+.forgot-password {
+  text-align: center;
+}
+
+.link {
+  color: #667eea;
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: color 0.3s ease;
+}
+
+.link:hover {
+  color: #5a67d8;
+  text-decoration: underline;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .auth-container {
+    flex-direction: column;
+  }
+  
+  .logo-section {
+    flex: none;
+    padding: 1rem;
+  }
+  
+  .logo-img {
+    width: 80px;
+    height: 80px;
+    margin-bottom: 1rem;
+  }
+  
+  .app-title {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  .app-subtitle {
+    font-size: 1rem;
+  }
+  
+  .auth-section {
+    padding: 1rem;
+  }
+  
+  .tab-content {
+    padding: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .tab-labels {
+    flex-direction: column;
+  }
+  
+  .tab-label {
+    padding: 0.75rem;
+  }
+  
+  .form-header h2 {
+    font-size: 1.5rem;
+  }
+}
+</style>
