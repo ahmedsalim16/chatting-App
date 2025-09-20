@@ -7,7 +7,7 @@ import { User } from 'firebase/auth';
 import { Subscription } from 'rxjs';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase.config';
-
+import { StorageService } from '../services/storage.service';
 interface ChatContact {
   id: string;
   name: string;
@@ -76,28 +76,32 @@ export class ChatAppComponent implements OnInit, OnDestroy {
   constructor(
     private authService: AuthService,
     private chatService: ChatService,
-    private router: Router
+    private router: Router,
+    private storageService: StorageService
   ) {}
 
-  ngOnInit(): void {
-    // التحقق من وجود مستخدم مسجل
-    const authSub = this.authService.getCurrentUser().subscribe(user => {
-      this.currentUser = user;
-      
-      if (user) {
-        this.user.name = user.displayName || 'مستخدم جديد';
-        this.user.profileImage = user.photoURL || '';
-        this.loadUserData();
-        this.loadChats();
-        this.loadAllUsers();
-      } else {
-        // إذا لم يكن هناك مستخدم، إعادة توجيه للصفحة الرئيسية
-        this.router.navigate(['/login']);
-      }
-    });
+ ngOnInit(): void {
+  console.log('ChatApp component initialized');
+  
+  const authSub = this.authService.getCurrentUser().subscribe(async user => {
+    console.log('Auth state changed:', user?.email);
+    this.currentUser = user;
     
-    this.subscriptions.push(authSub);
-  }
+    if (user) {
+      // تحميل البيانات من Firestore الأول
+      await this.loadUserData();
+      
+      // بعدين باقي البيانات
+      this.loadChats();
+      this.loadAllUsers();
+    } else {
+      console.log('No user logged in, redirecting to login');
+      this.router.navigate(['/login']);
+    }
+  });
+  
+  this.subscriptions.push(authSub);
+}
 
   ngOnDestroy(): void {
     this.subscriptions.forEach(sub => sub.unsubscribe());
@@ -126,7 +130,7 @@ export class ChatAppComponent implements OnInit, OnDestroy {
 
     await setDoc(userRef, userData);
     console.log('User added successfully:', userData);
-    alert('تم إضافة المستخدم بنجاح');
+    alert('user added successfuly');
     
     // إعادة تحميل المستخدمين
     this.refreshUsersList();
@@ -148,7 +152,16 @@ export class ChatAppComponent implements OnInit, OnDestroy {
   onSearchChange(): void {
     this.filterData();
   }
+// في chat-app.component.ts أضف دالة refresh
+async refreshUserProfile(): Promise<void> {
+  if (this.currentUser) {
+    await this.loadUserData();
+    console.log('User profile refreshed');
+  }
+}
 
+// ممكن تضيف زر refresh في HTML
+// <button (click)="refreshUserProfile()">تحديث البيانات</button>
   private filterData(): void {
     const searchLower = this.searchTerm.toLowerCase();
     
@@ -166,14 +179,69 @@ export class ChatAppComponent implements OnInit, OnDestroy {
   }
 
   // User data methods
-  private async loadUserData(): Promise<void> {
-    if (this.currentUser) {
-      const profile = await this.authService.getUserProfile(this.currentUser.uid);
-      if (profile) {
-        this.user.status = profile.status || '😊 متاح';
-      }
+// تحديث دالة loadUserData في chat-app.component.ts
+// في chat-app.component.ts
+private async loadUserData(): Promise<void> {
+  if (!this.currentUser) return;
+
+  try {
+    console.log('Loading user data from Firestore for:', this.currentUser.uid);
+    
+    // استنى البيانات من Firestore
+    const profile = await this.authService.getUserProfile(this.currentUser.uid);
+    
+    if (profile) {
+      console.log('Profile found in Firestore:', profile);
+      
+      // تحديث البيانات من Firestore (أهم من Firebase Auth)
+      this.user.name = profile.displayName || this.currentUser.displayName || 'مستخدم جديد';
+      this.user.status = profile.status || '😊 متاح';
+      this.user.profileImage = profile.photoURL || this.currentUser.photoURL || '';
+      this.user.isOnline = profile.isOnline || false;
+      
+      console.log('UI updated with Firestore data:', this.user);
+    } else {
+      console.log('No profile in Firestore, using Firebase Auth data');
+      // إذا مفيش profile في Firestore، إنشاء واحد جديد
+      await this.createUserProfileInFirestore();
     }
+  } catch (error) {
+    console.error('Error loading user data:', error);
+    // في حالة الخطأ، استخدم بيانات Firebase Auth
+    this.user.name = this.currentUser.displayName || 'مستخدم جديد';
+    this.user.profileImage = this.currentUser.photoURL || '';
   }
+}
+
+// دالة إنشاء profile في Firestore لو مش موجود
+private async createUserProfileInFirestore(): Promise<void> {
+  if (!this.currentUser) return;
+  
+  try {
+    const userRef = doc(db, 'users', this.currentUser.uid);
+    const userData = {
+      uid: this.currentUser.uid,
+      email: this.currentUser.email || '',
+      displayName: this.currentUser.displayName || 'مستخدم جديد',
+      photoURL: this.currentUser.photoURL || '',
+      isOnline: true,
+      status: '😊 متاح',
+      lastSeen: serverTimestamp(),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    };
+    
+    await setDoc(userRef, userData);
+    console.log('Created new user profile in Firestore');
+    
+    // تحديث UI
+    this.user.name = userData.displayName;
+    this.user.status = userData.status;
+    this.user.profileImage = userData.photoURL;
+  } catch (error) {
+    console.error('Error creating user profile:', error);
+  }
+}
 
   // private loadAllUsers(): void {
   //   const usersSub = this.chatService.getAllUsers().subscribe(users => {
@@ -350,35 +418,54 @@ export class ChatAppComponent implements OnInit, OnDestroy {
   
   showUsersList = false;
 
-
- async saveStatus(): Promise<void> {
-    if (this.tempStatus.trim() && this.currentUser) {
-      try {
-        await this.authService.updateUserStatusText(this.currentUser.uid, this.tempStatus.trim());
-        this.user.status = this.tempStatus.trim();
-        this.cancelStatusEdit();
-      } catch (error) {
-        console.error('Error updating status:', error);
-      }
+// في chat-app.component.ts
+async saveStatus(): Promise<void> {
+  if (this.tempStatus.trim() && this.currentUser) {
+    try {
+      console.log('Saving status:', this.tempStatus.trim());
+      
+      // حفظ في Firestore
+      await this.authService.updateUserStatusText(this.currentUser.uid, this.tempStatus.trim());
+      
+      // تحديث الواجهة
+      this.user.status = this.tempStatus.trim();
+      this.cancelStatusEdit();
+      
+      console.log('Status saved successfully');
+      alert('تم حفظ الحالة بنجاح');
+      
+    } catch (error) {
+      console.error('Error updating status:', error);
+      alert('خطأ في حفظ الحالة: ' + (error instanceof Error ? error.message : 'خطأ غير معروف'));
     }
   }
+}
+
+async setQuickStatus(status: StatusOption): Promise<void> {
+  const newStatus = `${status.emoji} ${status.text}`;
+  if (this.currentUser) {
+    try {
+      console.log('Setting quick status:', newStatus);
+      
+      await this.authService.updateUserStatusText(this.currentUser.uid, newStatus);
+      this.user.status = newStatus;
+      
+      console.log('Quick status set successfully');
+      
+      
+    } catch (error) {
+      console.error('Error setting quick status:', error);
+      alert('Error setting quick status');
+    }
+  }
+}
 
   cancelStatusEdit(): void {
     this.isEditingStatus = false;
     this.tempStatus = '';
   }
 
-  async setQuickStatus(status: StatusOption): Promise<void> {
-    const newStatus = `${status.emoji} ${status.text}`;
-    if (this.currentUser) {
-      try {
-        await this.authService.updateUserStatusText(this.currentUser.uid, newStatus);
-        this.user.status = newStatus;
-      } catch (error) {
-        console.error('Error setting quick status:', error);
-      }
-    }
-  }
+
   toggleUsersList(): void {
     this.showUsersList = !this.showUsersList;
   }
@@ -397,17 +484,65 @@ export class ChatAppComponent implements OnInit, OnDestroy {
     this.isEditingStatus = true;
     this.tempStatus = this.user.status;
   }
-   onImageUpload(event: any): void {
-    const file = event.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e: any) => {
-        this.user.profileImage = e.target.result;
-        // يمكن إضافة رفع الصورة إلى Firebase Storage هنا
-      };
-      reader.readAsDataURL(file);
+async onImageUpload(event: any): Promise<void> {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  try {
+    // التحقق من نوع الملف
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      alert('يرجى اختيار صورة صحيحة (JPG, PNG, GIF, WebP)');
+      return;
     }
+
+    // التحقق من حجم الملف
+    if (file.size > 2 * 1024 * 1024) {
+      alert('حجم الصورة كبير جداً. يرجى اختيار صورة أقل من 2 ميجا');
+      return;
+    }
+
+    if (!this.currentUser) {
+      alert('يجب تسجيل الدخول أولاً');
+      return;
+    }
+
+    // تحويل الصورة إلى Base64
+    const reader = new FileReader();
+    reader.onload = async (e: any) => {
+      try {
+        const imageData = e.target.result;
+        
+        // تحديث الواجهة فوراً
+        this.user.profileImage = imageData;
+        
+        // حفظ في Firestore
+        await this.authService.updateUserPhoto(this.currentUser!.uid, imageData);
+        
+        console.log('Image uploaded successfully');
+        
+      } catch (error) {
+        console.error('Error uploading image:', error);
+        alert('خطأ في حفظ الصورة: ' + (error instanceof Error ? error.message : 'خطأ غير معروف'));
+        // إرجاع الصورة للحالة السابقة
+        this.user.profileImage = this.currentUser?.photoURL || '';
+      }
+    };
+
+    reader.onerror = () => {
+      alert('خطأ في قراءة الملف');
+    };
+
+    reader.readAsDataURL(file);
+
+  } catch (error) {
+    console.error('Error processing image:', error);
+    alert('خطأ في معالجة الصورة');
   }
+
+  // مسح الـ input
+  event.target.value = '';
+}
 
   openFileDialog(): void {
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
@@ -495,14 +630,34 @@ formatMessageTime(timestamp: any): string {
   }
 
   // Sign out
-  async signOut(): Promise<void> {
-    try {
-      await this.authService.signOutUser();
-      this.router.navigate(['/login']);
-    } catch (error) {
-      console.error('Error signing out:', error);
+ // في chat-app.component.ts
+async signOut(): Promise<void> {
+  try {
+    console.log('Signing out user...');
+    
+    if (this.currentUser) {
+      // تحديث حالة المستخدم قبل الخروج
+      await this.authService.updateUserStatus(this.currentUser.uid, false);
     }
+    
+    await this.authService.signOutUser();
+    
+    // مسح البيانات المحلية
+    this.user = {
+      name: 'مستخدم جديد',
+      status: '😊 متاح',
+      profileImage: '',
+      isOnline: false
+    };
+    
+    console.log('User signed out successfully');
+    this.router.navigate(['/login']);
+  } catch (error) {
+    console.error('Error signing out:', error);
+    // حتى لو في خطأ، اعمل logout
+    this.router.navigate(['/login']);
   }
+}
    // Utility method to refresh users list
   refreshUsersList(): void {
     this.loadAllUsers();

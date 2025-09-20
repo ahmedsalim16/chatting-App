@@ -35,17 +35,70 @@ export class AuthService {
 
   // تسجيل دخول بـ Google
  // في authservice.service.ts - استبدال الدالة دي
+// في authservice.service.ts
 async signInWithEmail(email: string, password: string): Promise<User> {
   try {
     const result = await signInWithEmailAndPassword(auth, email, password);
     
-    // تأكد من حفظ المستخدم في Firestore في كل login
-    await this.forceCreateUserProfile(result.user);
+    // تحديث حالة الاتصال والتأكد من حفظ البيانات
+    await this.ensureUserProfileExists(result.user);
     
     return result.user;
   } catch (error) {
     console.error('Error signing in with email:', error);
     throw error;
+  }
+}
+
+async signInWithGoogle(): Promise<User> {
+  try {
+    const provider = new GoogleAuthProvider();
+    const result = await signInWithPopup(auth, provider);
+    
+    // تحديث أو إنشاء profile
+    await this.ensureUserProfileExists(result.user);
+    
+    return result.user;
+  } catch (error) {
+    console.error('Error signing in with Google:', error);
+    throw error;
+  }
+}
+
+// دالة للتأكد من وجود profile في Firestore
+private async ensureUserProfileExists(user: User): Promise<void> {
+  try {
+    const userRef = doc(db, 'users', user.uid);
+    const userSnap = await getDoc(userRef);
+    
+    if (userSnap.exists()) {
+      // المستخدم موجود، تحديث حالة الاتصال فقط
+      await setDoc(userRef, {
+        isOnline: true,
+        lastSeen: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+      
+      console.log('Updated existing user status');
+    } else {
+      // المستخدم جديد، إنشاء profile كامل
+      const userData = {
+        uid: user.uid,
+        email: user.email || '',
+        displayName: user.displayName || 'مستخدم جديد',
+        photoURL: user.photoURL || '',
+        isOnline: true,
+        status: '😊 متاح',
+        lastSeen: serverTimestamp(),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+      
+      await setDoc(userRef, userData);
+      console.log('Created new user profile');
+    }
+  } catch (error) {
+    console.error('Error ensuring user profile exists:', error);
   }
 }
 
@@ -65,20 +118,7 @@ async signUpWithEmail(email: string, password: string, displayName: string): Pro
   }
 }
 
-async signInWithGoogle(): Promise<User> {
-  try {
-    const provider = new GoogleAuthProvider();
-    const result = await signInWithPopup(auth, provider);
-    
-    // حفظ مباشر في Firestore
-    await this.forceCreateUserProfile(result.user);
-    
-    return result.user;
-  } catch (error) {
-    console.error('Error signing in with Google:', error);
-    throw error;
-  }
-}
+
 
 // دالة جديدة للحفظ الإجباري
 private async forceCreateUserProfile(user: User, customDisplayName?: string): Promise<void> {
@@ -112,7 +152,8 @@ private async forceCreateUserProfile(user: User, customDisplayName?: string): Pr
 }
 
   // إنشاء أو تحديث بروفايل المستخدم
-  private async createOrUpdateUserProfile(
+// في authservice.service.ts تأكد إن البيانات بتتحفظ صحيح
+private async createOrUpdateUserProfile(
   user: User, 
   isExistingUser: boolean = false, 
   customDisplayName?: string
@@ -123,8 +164,7 @@ private async forceCreateUserProfile(user: User, customDisplayName?: string): Pr
     
     const userSnap = await getDoc(userRef);
     const userExists = userSnap.exists();
-    console.log('User exists in Firestore:', userExists);
-
+    
     const userData = {
       uid: user.uid,
       email: user.email,
@@ -136,15 +176,10 @@ private async forceCreateUserProfile(user: User, customDisplayName?: string): Pr
       createdAt: userExists ? userSnap.data()?.['createdAt'] : serverTimestamp(),
       updatedAt: serverTimestamp()
     };
-
-    console.log('Saving user data:', userData);
-    await setDoc(userRef, userData, { merge: true });
-    console.log('User data saved successfully');
     
-    if (!userExists) {
-      console.log('New user created in Firestore:', userData.displayName);
-      await this.addWelcomeNotification(user.uid);
-    }
+    console.log('Saving user data to Firestore:', userData);
+    await setDoc(userRef, userData, { merge: true });
+    console.log('User profile saved successfully');
     
   } catch (error) {
     console.error('Error creating/updating user profile:', error);
@@ -197,30 +232,36 @@ private async forceCreateUserProfile(user: User, customDisplayName?: string): Pr
   }
 
   // تحديث حالة المستخدم (النص)
-  async updateUserStatusText(userId: string, status: string): Promise<void> {
-    try {
-      const userRef = doc(db, 'users', userId);
-      await setDoc(userRef, { 
-        status,
-        updatedAt: serverTimestamp()
-      }, { merge: true });
-    } catch (error) {
-      console.error('Error updating user status text:', error);
-    }
+  // في authservice.service.ts تأكد من وجود هذه الدالة
+async updateUserStatusText(userId: string, status: string): Promise<void> {
+  try {
+    console.log('Updating user status in Firestore:', userId, status);
+    const userRef = doc(db, 'users', userId);
+    await setDoc(userRef, { 
+      status,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+    console.log('User status updated successfully in Firestore');
+  } catch (error) {
+    console.error('Error updating user status text:', error);
+    throw error;
   }
+}
 
   // تحديث صورة المستخدم
-  async updateUserPhoto(userId: string, photoURL: string): Promise<void> {
-    try {
-      const userRef = doc(db, 'users', userId);
-      await setDoc(userRef, { 
-        photoURL,
-        updatedAt: serverTimestamp()
-      }, { merge: true });
-    } catch (error) {
-      console.error('Error updating user photo:', error);
-    }
+ async updateUserPhoto(userId: string, photoURL: string): Promise<void> {
+  try {
+    const userRef = doc(db, 'users', userId);
+    await setDoc(userRef, { 
+      photoURL,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+    console.log('Profile photo updated successfully');
+  } catch (error) {
+    console.error('Error updating user photo:', error);
+    throw error;
   }
+}
 
   // تسجيل خروج
   async signOutUser(): Promise<void> {
@@ -264,4 +305,19 @@ private async forceCreateUserProfile(user: User, customDisplayName?: string): Pr
       return false;
     }
   }
+  // في authservice.service.ts - أضف هذه الدالة
+async updateUserProfileImage(userId: string, photoURL: string): Promise<void> {
+  try {
+    const userRef = doc(db, 'users', userId);
+    await setDoc(userRef, { 
+      photoURL,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+    console.log('Profile image URL updated in Firestore');
+  } catch (error) {
+    console.error('Error updating profile image in Firestore:', error);
+    throw error;
+  }
+}
+
 }

@@ -744,6 +744,7 @@
   background: #667eea;
   color: white;
   border-bottom-right-radius: 6px;
+      width: 180px;
 }
 
 .message.received .message-content {
@@ -751,6 +752,7 @@
   border: 1px solid #e2e8f0;
   color: #2d3748;
   border-bottom-left-radius: 6px;
+      width: 180px;
 }
 
 .message-text {
@@ -1038,5 +1040,9 @@
   cursor: pointer;
   transition: all 0.3s ease;
   font-size: 0.9rem;
+}
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 </style>
