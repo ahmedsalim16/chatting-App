@@ -62,14 +62,20 @@
               <div class="input-wrapper">
                 <span class="input-icon">🔒</span>
                 <input 
-                  type="password" 
-                  name="loginPassword" 
-                  class="form-input" 
-                  placeholder="Enter your password" 
-                  [(ngModel)]="loginPassword"
-                  (input)="clearErrors()"
-                  required
-                  autocomplete="current-password">
+      [type]="showLoginPassword ? 'text' : 'password'"
+      name="loginPassword" 
+      class="form-input" 
+      placeholder="Enter your password" 
+      [(ngModel)]="loginPassword"
+      (input)="clearErrors()"
+      required
+      autocomplete="current-password">
+    <button 
+      type="button" 
+      class="password-toggle"
+      (click)="toggleLoginPassword()">
+      <span>{{ showLoginPassword ? '🙈' : '👁️' }}</span>
+    </button>
               </div>
             </div>
             
@@ -150,36 +156,41 @@
               </div>
             </div>
             
-            <div class="input-group">
-              <div class="input-wrapper">
-                <span class="input-icon">🔒</span>
-                <input 
-                  type="password" 
-                  name="signupPassword" 
-                  class="form-input" 
-                  placeholder="Create password" 
-                  [(ngModel)]="signupPassword"
-                  (input)="clearErrors()"
-                  required
-                  minlength="6"
-                  autocomplete="new-password">
-              </div>
-            </div>
-            
-            <button 
-              type="submit" 
-              class="submit-btn secondary"
-              [disabled]="isSignupLoading || !signupForm.valid">
-              <span *ngIf="!isSignupLoading" class="btn-text">
-                <span class="btn-icon">✨</span>
-                Create Account
-              </span>
-              <span *ngIf="isSignupLoading" class="loading-text">
-                <span class="spinner"></span>
-                Creating account...
-              </span>
-            </button>
-          </form>
+      <div class="input-group">
+        <div class="input-wrapper">
+          <span class="input-icon">🔒</span>
+          <input 
+            [type]="showSignupPassword ? 'text' : 'password'"
+            name="signupPassword" 
+            class="form-input" 
+            placeholder="Create a password" 
+            [(ngModel)]="signupPassword"
+            (input)="clearErrors()"
+            required
+            autocomplete="new-password">
+          <button 
+            type="button" 
+            class="password-toggle"
+            (click)="toggleSignupPassword()">
+            <span>{{ showSignupPassword ? '🙈' : '👁️' }}</span>
+          </button>
+        </div>
+      </div>
+      
+      <button 
+        type="submit" 
+        class="submit-btn secondary"
+        [disabled]="isSignupLoading || !signupForm.valid">
+        <span *ngIf="!isSignupLoading" class="btn-text">
+          <span class="btn-icon">✨</span>
+          Create Account
+        </span>
+        <span *ngIf="isSignupLoading" class="loading-text">
+          <span class="spinner"></span>
+          Creating account...
+        </span>
+      </button>
+    </form>
 
           <div class="divider">
             <span>or continue with</span>
@@ -204,6 +215,75 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+}
+
+/* أضف هذا في الـ style section */
+
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: #f7fafc;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.input-icon {
+  padding: 0 1rem;
+  color: #a0aec0;
+  font-size: 1.1rem;
+}
+
+.form-input {
+  flex: 1;
+  padding: 1rem 3rem 1rem 0; /* إضافة padding للزر */
+  border: none;
+  background: transparent;
+  font-size: 1rem;
+  outline: none;
+  color: #2d3748;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 1rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  color: #a0aec0;
+  font-size: 1.1rem;
+  transition: all 0.3s ease;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.password-toggle:hover {
+  background: rgba(102, 126, 234, 0.1);
+  color: #667eea;
+}
+
+.password-toggle:focus {
+  outline: none;
+  background: rgba(102, 126, 234, 0.1);
+  color: #667eea;
+}
+
+.password-toggle span {
+  display: block;
+  line-height: 1;
+}
+
+/* تحسين responsive */
+@media (max-width: 480px) {
+  .password-toggle {
+    right: 0.75rem;
+    padding: 0.25rem;
+    font-size: 1rem;
+  }
 }
 
 .auth-container {

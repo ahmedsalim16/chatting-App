@@ -29,7 +29,19 @@ export class LoginComponent {
     private authService: AuthService,
     private router: Router
   ) {}
+ showLoginPassword = false;
+  showSignupPassword = false;
 
+  // ... باقي الكود الموجود
+
+  // Toggle password visibility functions
+  toggleLoginPassword(): void {
+    this.showLoginPassword = !this.showLoginPassword;
+  }
+
+  toggleSignupPassword(): void {
+    this.showSignupPassword = !this.showSignupPassword;
+  }
   // تسجيل الدخول بالإيميل والباسوورد
   async onLogin(): Promise<void> {
     if (!this.loginEmail.trim() || !this.loginPassword.trim()) {

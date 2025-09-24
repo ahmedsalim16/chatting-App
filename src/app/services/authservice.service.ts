@@ -50,18 +50,63 @@ async signInWithEmail(email: string, password: string): Promise<User> {
   }
 }
 
+// في authservice.service.ts
 async signInWithGoogle(): Promise<User> {
   try {
-    const provider = new GoogleAuthProvider();
-    const result = await signInWithPopup(auth, provider);
+    console.log('Attempting Google sign-in...');
     
-    // تحديث أو إنشاء profile
+    const provider = new GoogleAuthProvider();
+    
+    // إضافة scopes مطلوبة
+    provider.addScope('profile');
+    provider.addScope('email');
+    
+    // إعدادات إضافية
+    provider.setCustomParameters({
+      prompt: 'select_account' // يخلي المستخدم يختار الأكونت
+    });
+
+    const result = await signInWithPopup(auth, provider);
+    console.log('Google sign-in successful:', result.user.email);
+    
+    // إنشاء أو تحديث profile
     await this.ensureUserProfileExists(result.user);
     
     return result.user;
-  } catch (error) {
-    console.error('Error signing in with Google:', error);
-    throw error;
+    
+  } catch (error: any) {
+    console.error('Google sign-in error details:', error);
+    
+    // معالجة أخطاء Google المختلفة
+    let errorMessage = 'خطأ في تسجيل الدخول بـ Google';
+    
+    switch (error.code) {
+      case 'auth/popup-closed-by-user':
+        errorMessage = 'تم إغلاق نافذة تسجيل الدخول';
+        break;
+      case 'auth/popup-blocked':
+        errorMessage = 'المتصفح منع النافذة المنبثقة. يرجى السماح للنوافذ المنبثقة وإعادة المحاولة';
+        break;
+      case 'auth/cancelled-popup-request':
+        errorMessage = 'تم إلغاء طلب تسجيل الدخول';
+        break;
+      case 'auth/network-request-failed':
+        errorMessage = 'خطأ في الشبكة. تأكد من الاتصال بالإنترنت';
+        break;
+      case 'auth/internal-error':
+        errorMessage = 'خطأ داخلي. جرب مرة أخرى';
+        break;
+      case 'auth/invalid-api-key':
+        errorMessage = 'خطأ في إعدادات Firebase';
+        break;
+      case 'auth/app-not-authorized':
+        errorMessage = 'التطبيق غير مصرح له باستخدام Google Sign-in';
+        break;
+      default:
+        errorMessage = `خطأ: ${error.message}`;
+    }
+    
+    throw new Error(errorMessage);
   }
 }
 

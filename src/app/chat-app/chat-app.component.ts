@@ -272,12 +272,16 @@ private async createUserProfileInFirestore(): Promise<void> {
     this.subscriptions.push(chatsSub);
   }
 
-  private async processChats(chats: Chat[]): Promise<void> {
-    this.chatContacts = [];
-    
-    for (const chat of chats) {
-      const otherUserId = chat.participants.find(p => p !== this.currentUser?.uid);
-      if (otherUserId) {
+private async processChats(chats: Chat[]): Promise<void> {
+  // مسح المحادثات القديمة
+  this.chatContacts = [];
+  
+  for (const chat of chats) {
+    const otherUserId = chat.participants.find(p => p !== this.currentUser?.uid);
+    if (otherUserId) {
+      // التأكد إن المحادثة مش مضافة قبل كده
+      const existingContact = this.chatContacts.find(c => c.id === otherUserId);
+      if (!existingContact) {
         const otherUserProfile = await this.authService.getUserProfile(otherUserId);
         if (otherUserProfile) {
           const contact: ChatContact = {
@@ -296,10 +300,32 @@ private async createUserProfileInFirestore(): Promise<void> {
         }
       }
     }
-    
-    this.filterData(); // Update filtered chats
   }
+  
+  // ترتيب المحادثات حسب آخر رسالة
+  this.chatContacts.sort((a, b) => {
+    const timeA = a.lastMessageTime?.toMillis?.() || 0;
+    const timeB = b.lastMessageTime?.toMillis?.() || 0;
+    return timeB - timeA;
+  });
+  
+  this.filterData(); // Update filtered chats
+}
 
+// دالة للتنظيف من المحادثات المكررة
+private removeDuplicateContacts(): void {
+  const uniqueContacts: ChatContact[] = [];
+  const seenIds = new Set<string>();
+  
+  for (const contact of this.chatContacts) {
+    if (!seenIds.has(contact.id)) {
+      uniqueContacts.push(contact);
+      seenIds.add(contact.id);
+    }
+  }
+  
+  this.chatContacts = uniqueContacts;
+}
   // async startChatWithUser(user: any): Promise<void> {
   //   if (!this.currentUser) return;
 
@@ -561,35 +587,53 @@ formatMessageTime(timestamp: any): string {
   return `${hours}:${minutes} ${ampm}`;
 }
 
- async startChatWithUser(user: any): Promise<void> {
-    if (!this.currentUser) return;
+async startChatWithUser(user: any): Promise<void> {
+  if (!this.currentUser) return;
 
-    try {
-      const chatId = await this.chatService.startChatWithUser(this.currentUser.uid, user.uid);
-      
-      const newContact: ChatContact = {
-        id: user.uid,
-        name: user.displayName || 'مستخدم',
-        avatar: user.displayName?.charAt(0).toUpperCase() || 'M',
-        status: '😊 متاح',
-        isOnline: user.isOnline || false,
-        chatId: chatId,
-        isActive: false
-      };
-
-      // إضافة جهة الاتصال إذا لم تكن موجودة
-      const existingContact = this.chatContacts.find(c => c.id === user.uid);
-      if (!existingContact) {
-        this.chatContacts.unshift(newContact);
-      }
-
-      // تحديد جهة الاتصال
-      this.selectContact(existingContact || newContact);
-      this.showUsersList = false;
-    } catch (error) {
-      console.error('Error starting chat:', error);
+  try {
+    // أولاً، شوف لو الـ contact موجود فعلاً في المحادثات
+    let existingContact = this.chatContacts.find(c => c.id === user.uid);
+    
+    if (existingContact) {
+      // لو موجود، اختاره بس مش تضيفه تاني
+      this.selectContact(existingContact);
+      this.setActiveTab('chats');
+      return;
     }
+
+    // لو مش موجود، اعمل chat جديد
+    const chatId = await this.chatService.startChatWithUser(this.currentUser.uid, user.uid);
+    
+    // إنشاء contact جديد
+    const newContact: ChatContact = {
+      id: user.uid,
+      name: user.displayName || 'مستخدم',
+      avatar: user.displayName?.charAt(0).toUpperCase() || 'M',
+      status: 'بدء محادثة جديدة',
+      isOnline: user.isOnline || false,
+      chatId: chatId,
+      profileImage: user.photoURL,
+      lastMessageTime: null,
+      isActive: false
+    };
+
+    // إضافة للقائمة
+    this.chatContacts.unshift(newContact);
+    
+    // تحديث الفلتر
+    this.filterData();
+    
+    // اختيار المحادثة الجديدة
+    this.selectContact(newContact);
+    this.setActiveTab('chats');
+    
+    console.log('New chat started with:', user.displayName);
+    
+  } catch (error) {
+    console.error('Error starting chat:', error);
+    alert('خطأ في بدء المحادثة');
   }
+}
 
   selectContact(contact: ChatContact): void {
     this.chatContacts.forEach(c => c.isActive = false);
